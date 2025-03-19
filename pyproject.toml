@@ -9,13 +9,11 @@ readme = "README.md"
 requires-python = ">=3.12, <4"
 dependencies = [
     "zaber-motion (>=7.5.0,<8.0.0)",
-    "scipy (>=1.15.2,<2.0.0)",
     "numpy (>=2.2.4,<3.0.0)",
-    "arl-utils-py @ git+https://github.com/UBC-ARL/ARL-utils-py.git",
     "pydantic (>=2.10.6,<3.0.0)",
     "tomli-w (>=1.2.0,<2.0.0)",
-    "pppsr-3 @ git+https://github.com/UBC-ARL/PPPSR-3.git",
     "click (>=8.1.8,<9.0.0)",
+    "pppsr-3 @ git+https://github.com/UBC-ARL/PPPSR-3.git",
 ]
 
 [tool.poetry]
@@ -24,3 +22,6 @@ packages = [{ include = "pppsr_3_zaber", from = "src" }]
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+arl-utils-py = { git = "https://github.com/UBC-ARL/ARL-utils-py.git" }

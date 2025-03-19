@@ -18,7 +18,7 @@ version = "0.1.0"
 description = ""
 optional = false
 python-versions = ">= 3.11"
-groups = ["main"]
+groups = ["dev"]
 files = []
 develop = false
 
@@ -285,7 +285,7 @@ version = "1.2.2"
 description = "Continuous Range, RangeSet, and RangeDict data structures"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["dev"]
 files = [
     {file = "python-ranges-1.2.2.tar.gz", hash = "sha256:799618046603954a78ab4611d21080d387b3e9c50c181789e3903d6209a26b98"},
     {file = "python_ranges-1.2.2-py3-none-any.whl", hash = "sha256:d103447237a6b57860b406863345bf405a46f374f0882fed37da5f36807653df"},
@@ -418,4 +418,4 @@ reactivex = ">=4.0.0,<4.1.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12, <4"
-content-hash = "7d1a821c2ff8d173e071d99d37c985f4879d6bdfdb1881ac13417161d6abb4b6"
+content-hash = "dbe344a1de6e29c9bae4f5d8bdfa9172c798cfebb7a8a4e35c8779ee9edb7d48"

@@ -293,3 +293,53 @@ class PPPSRZaberRobot:
                 )
             ]
         )
+
+    def wait_until_idle(self):
+        if self.__connection is None:
+            raise RuntimeError("Connection is not open")
+        while any(
+            [
+                self.__connection.get_device(leg.device_address).all_axes.is_busy()
+                for leg in [
+                    self.__config.leg1,
+                    self.__config.leg2,
+                    self.__config.leg3,
+                ]
+            ]
+        ):
+            pass
+
+    async def wait_until_idle_async(self):
+        return await asyncio.gather(
+            *[leg.device.all_axes.wait_until_idle_async() for leg in self.legs]
+        )
+
+    async def move_to_target_by_step_stream_async(
+        self,
+        p: Array3,
+        R: Rotation,
+        rdof: Array3,
+        p_target: Array3,
+        R_target: Rotation,
+        rdof_target: Array3,
+        max_translation_step_mm: float,
+        max_rotation_step_deg: float,
+        # max_rdof_step_deg: float,
+    ):
+        dp = p_target - p
+        dR = R_target * R.inv()
+        dR_rotvec = dR.as_rotvec()
+        dR_ang_deg = np.rad2deg(np.linalg.norm(dR_rotvec))
+
+        ratio = np.max(
+            list(np.abs(dp) / max_translation_step_mm)
+            + [np.abs(dR_ang_deg) / max_rotation_step_deg]
+            + [1],
+        )
+
+        p_next = p + dp / ratio
+        R_next = R * Rotation.from_rotvec(dR_rotvec / ratio)
+        rdof_next = rdof + (rdof_target - rdof) / ratio
+
+        await self.move_to_stream_live_async(p_next, R_next, rdof_next)
+        return p_next, R_next, rdof_next
