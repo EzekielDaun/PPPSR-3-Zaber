@@ -1,0 +1,52 @@
+comport = "/dev/tty.usbmodem1122811"
+
+[leg1]
+z_axis = [
+    { inverted = true, axis_address = 1, origin = 250.0 },
+    { inverted = true, axis_address = 2, origin = 250.0 },
+]
+device_address = 1
+
+[leg1.x_axis]
+inverted = true
+axis_address = 3
+origin = 250.0
+
+[leg1.y_axis]
+inverted = false
+axis_address = 4
+origin = 250.0
+
+[leg2]
+z_axis = [
+    { inverted = true, axis_address = 1, origin = 250.0 },
+    { inverted = true, axis_address = 2, origin = 250.0 },
+]
+device_address = 2
+
+[leg2.x_axis]
+inverted = true
+axis_address = 3
+origin = 250.0
+
+[leg2.y_axis]
+inverted = false
+axis_address = 4
+origin = 250.0
+
+[leg3]
+z_axis = [
+    { inverted = true, axis_address = 1, origin = 250.0 },
+    { inverted = true, axis_address = 2, origin = 250.0 },
+]
+device_address = 3
+
+[leg3.x_axis]
+inverted = true
+axis_address = 3
+origin = 250.0
+
+[leg3.y_axis]
+inverted = false
+axis_address = 4
+origin = 250.0
