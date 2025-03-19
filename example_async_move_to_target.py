@@ -45,6 +45,7 @@ async def main():
                 rdof_target=RDOF0,
                 max_translation_step_mm=1 * dt,
                 max_rotation_step_deg=1 * dt,
+                max_rdof_step_deg=1 * dt,
             )
             await asyncio.sleep(dt)
             print(t)

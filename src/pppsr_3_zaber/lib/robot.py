@@ -324,7 +324,7 @@ class PPPSRZaberRobot:
         rdof_target: Array3,
         max_translation_step_mm: float,
         max_rotation_step_deg: float,
-        # max_rdof_step_deg: float,
+        max_rdof_step_deg: float,
     ):
         dp = p_target - p
         dR = R_target * R.inv()
@@ -334,6 +334,7 @@ class PPPSRZaberRobot:
         ratio = np.max(
             list(np.abs(dp) / max_translation_step_mm)
             + [np.abs(dR_ang_deg) / max_rotation_step_deg]
+            + list(np.abs(rdof_target - rdof) / max_rdof_step_deg)
             + [1],
         )
 
