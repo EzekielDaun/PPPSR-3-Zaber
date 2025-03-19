@@ -143,7 +143,7 @@ tomli-w = ">=1.2.0,<2.0.0"
 type = "git"
 url = "https://github.com/UBC-ARL/PPPSR-3.git"
 reference = "HEAD"
-resolved_reference = "12e2c934d50b7471114e49a3833ddd39acd93ed3"
+resolved_reference = "78f28aa4e2c795836ff3e0d171d382bcb019e86f"
 
 [[package]]
 name = "pydantic"

@@ -1,24 +1,17 @@
-import time
+import asyncio
 from dataclasses import dataclass
 from typing import Optional
 
 import click
 import numpy as np
-from pppsr_3 import DIMENSION, RDOF0, Array3, PPPSRDimension, Rotation
+from pppsr_3 import Array3, PPPSRDimension, Rotation
 from zaber_motion import Units
 from zaber_motion.ascii import Axis, Connection, Device, Lockstep
 from zaber_motion.ascii.warning_flags import WarningFlags
-from zaber_motion.dto.ascii import (
-    PvtAxisDefinition,
-    PvtAxisType,
-    PvtMode,
-    StreamAxisDefinition,
-    StreamAxisType,
-    StreamMode,
-)
+from zaber_motion.dto.ascii import StreamAxisDefinition, StreamAxisType
 from zaber_motion.dto.measurement import Measurement
 
-from pppsr_3_zaber.utils.pppsr_zaber_config import DEFAULT_TOML_NAME, PPPSRZaberConfig
+from pppsr_3_zaber.utils.pppsr_zaber_config import PPPSRZaberConfig
 
 
 @dataclass(frozen=True)
@@ -34,47 +27,25 @@ class PPPSRZaberLeg:
         self.axes[1].move_absolute(p[1], **kwargs)
         self.axes[2].move_absolute(p[2], **kwargs)
 
-    def move_absolute_pvt_live(self, p_i: Array3, unit: Units, time_s: float):
-        driver_coordinate = self.origin + np.where(self.inverted, -p_i, p_i)
-        pvt_sequence = self.device.pvt.get_sequence(1)
-
-        if pvt_sequence.check_disabled():
-            pvt_sequence.setup_live_composite(
-                *[
-                    (
-                        PvtAxisDefinition(axis.axis_number, PvtAxisType.PHYSICAL)
-                        if isinstance(axis, Axis)
-                        else PvtAxisDefinition(
-                            axis.lockstep_group_id, PvtAxisType.LOCKSTEP
-                        )
-                    )
-                    for axis in self.axes
-                ],
-            )
-        pvt_sequence.point(
-            [Measurement(p, unit) for p in driver_coordinate],
-            [None for p in driver_coordinate],
-            Measurement(time_s, Units.TIME_SECONDS),
+    async def move_absolute_local_async(self, p_i: Array3, **kwargs):
+        p = self.origin + np.where(self.inverted, -p_i, p_i)
+        return await asyncio.gather(
+            self.axes[0].move_absolute_async(p[0], **kwargs),
+            self.axes[1].move_absolute_async(p[1], **kwargs),
+            self.axes[2].move_absolute_async(p[2], **kwargs),
         )
 
     def move_absolute_stream_live(self, p_i: Array3, unit: Units):
         driver_coordinate = self.origin + np.where(self.inverted, -p_i, p_i)
-
         stream = self.device.streams.get_stream(1)
-        # if stream.check_disabled():
-        #     stream.setup_live_composite(
-        #         *[
-        #             (
-        #                 StreamAxisDefinition(axis.axis_number, StreamAxisType.PHYSICAL)
-        #                 if isinstance(axis, Axis)
-        #                 else StreamAxisDefinition(
-        #                     axis.lockstep_group_id, StreamAxisType.LOCKSTEP
-        #                 )
-        #             )
-        #             for axis in self.axes
-        #         ],
-        #     )
         stream.line_absolute(*[Measurement(p, unit) for p in driver_coordinate])
+
+    async def move_absolute_stream_live_async(self, p_i: Array3, unit: Units):
+        driver_coordinate = self.origin + np.where(self.inverted, -p_i, p_i)
+        stream = self.device.streams.get_stream(1)
+        return await stream.line_absolute_async(
+            *[Measurement(p, unit) for p in driver_coordinate]
+        )
 
 
 class PPPSRZaberRobot:
@@ -92,7 +63,7 @@ class PPPSRZaberRobot:
 
     def __enter__(self):
         self.__connection = Connection.open_serial_port(self.__config.comport)
-        self.__connection.disable_alerts()
+        # self.__connection.disable_alerts()
         # self.__connection.enable_alerts()
         # self.__connection.alert.subscribe(
         # lambda alert: print(f"Alert from device: {alert}")
@@ -233,47 +204,29 @@ class PPPSRZaberRobot:
             ):
                 pass
 
-    def move_to_pvt_live(
-        self, p: Array3, R: Rotation, redundant_angle: Array3, time_s: float
+    async def move_to_async(
+        self,
+        p: Array3,
+        R: Rotation,
+        redundant_angle: Array3,
+        wait_until_idle: bool = True,
     ):
-        if self.__connection is None:
-            raise RuntimeError("Connection is not open")
-
-        for leg, local_coords in zip(
-            self.legs,
-            self.__dimension.p_i_local(p, R, redundant_angle),
-        ):
-            leg.move_absolute_pvt_live(
-                local_coords,
-                Units.LENGTH_MILLIMETRES,
-                time_s,
-            )
-
-    def move_to_stream_live(self, p: Array3, R: Rotation, redundant_angle: Array3):
-        if self.__connection is None:
-            raise RuntimeError("Connection is not open")
-
-        for leg, local_coords in zip(
-            self.legs,
-            self.__dimension.p_i_local(p, R, redundant_angle),
-        ):
-            leg.move_absolute_stream_live(
-                local_coords,
-                Units.LENGTH_MILLIMETRES,
-            )
-
-
-if __name__ == "__main__":
-    config = PPPSRZaberConfig.from_toml(DEFAULT_TOML_NAME)
-
-    with PPPSRZaberRobot(config, DIMENSION) as robot:
-        robot.move_to(
-            np.array([0, 0, 0]),
-            Rotation.from_euler("x", 0, degrees=True),
-            RDOF0,
+        return await asyncio.gather(
+            *[
+                leg.move_absolute_local_async(
+                    local_coords,
+                    unit=Units.LENGTH_MILLIMETRES,
+                    wait_until_idle=wait_until_idle,
+                )
+                for leg, local_coords in zip(
+                    self.legs,
+                    self.__dimension.p_i_local(p, R, redundant_angle),
+                )
+            ]
         )
 
-        for leg in robot.legs:
+    def enable_stream_live(self):
+        for leg in self.legs:
             stream = leg.device.streams.get_stream(1)
             if stream.check_disabled():
                 stream.setup_live_composite(
@@ -291,21 +244,52 @@ if __name__ == "__main__":
                     ],
                 )
 
-        # dt = 1 / 24
-        dt = 1 / 30
-        for t in np.arange(0, 5, dt):
-            # print(t)
-            robot.move_to_stream_live(
-                np.array([-30 * t, 0, 5 * t]),
-                Rotation.from_euler("x", 0, degrees=True),
-                RDOF0,
+    async def enable_stream_live_async(self):
+        return await asyncio.gather(
+            *[
+                disabled_leg.device.streams.get_stream(1).setup_live_composite_async(
+                    *[
+                        (
+                            StreamAxisDefinition(
+                                axis.axis_number, StreamAxisType.PHYSICAL
+                            )
+                            if isinstance(axis, Axis)
+                            else StreamAxisDefinition(
+                                axis.lockstep_group_id, StreamAxisType.LOCKSTEP
+                            )
+                        )
+                        for axis in disabled_leg.axes
+                    ],
+                )
+                for disabled_leg in filter(
+                    lambda leg: leg.device.streams.get_stream(1).check_disabled(),
+                    self.legs,
+                )
+            ]
+        )
+
+    def move_to_stream_live(self, p: Array3, R: Rotation, redundant_angle: Array3):
+        for leg, local_coords in zip(
+            self.legs,
+            self.__dimension.p_i_local(p, R, redundant_angle),
+        ):
+            leg.move_absolute_stream_live(
+                local_coords,
+                Units.LENGTH_MILLIMETRES,
             )
-        for t in np.arange(0, 5, dt):
-            # print(t)
-            t = 5 - t
-            robot.move_to_stream_live(
-                np.array([-30 * t, 0, 5 * t]),
-                Rotation.from_euler("x", 0, degrees=True),
-                RDOF0,
-            )
-        print("Done")
+
+    async def move_to_stream_live_async(
+        self, p: Array3, R: Rotation, redundant_angle: Array3
+    ):
+        return await asyncio.gather(
+            *[
+                leg.move_absolute_stream_live_async(
+                    local_coords,
+                    Units.LENGTH_MILLIMETRES,
+                )
+                for leg, local_coords in zip(
+                    self.legs,
+                    self.__dimension.p_i_local(p, R, redundant_angle),
+                )
+            ]
+        )
