@@ -332,14 +332,14 @@ class PPPSRZaberRobot:
         dR_ang_deg = np.rad2deg(np.linalg.norm(dR_rotvec))
 
         ratio = np.max(
-            list(np.abs(dp) / max_translation_step_mm)
+            [float(np.linalg.norm(dp) / max_translation_step_mm)]
             + [np.abs(dR_ang_deg) / max_rotation_step_deg]
             + list(np.abs(rdof_target - rdof) / max_rdof_step_deg)
             + [1],
         )
 
         p_next = p + dp / ratio
-        R_next = R * Rotation.from_rotvec(dR_rotvec / ratio)
+        R_next = Rotation.from_rotvec(dR_rotvec / ratio) * R
         rdof_next = rdof + (rdof_target - rdof) / ratio
 
         await self.move_to_stream_live_async(p_next, R_next, rdof_next)
